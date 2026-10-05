@@ -1,0 +1,509 @@
+html,
+body,
+#root {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-height: 100%;
+}
+
+body {
+    background: #000;
+    overflow-x: hidden;
+}
+
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.features-container {
+    position: relative;
+    isolation: isolate;
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100svh;
+    overflow-x: hidden;
+}
+
+.features-container::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    width: 100%;
+    height: 100vh;
+    height: 100svh;
+    background-image: var(--features-background);
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    transform: translateZ(0);
+}
+
+.features-container::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+}
+
+.features-hero {
+    width: min(90%, 1100px);
+    margin: 0 auto 60px;
+    padding: 140px 50px 50px;
+    background: rgba(0, 0, 0, 0.75);
+    border-radius: 20px;
+    color: white;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.section-tag {
+    display: inline-block;
+    margin-bottom: 20px;
+    padding: 8px 20px;
+    color: #00ff88;
+    border: 1px solid #00ff88;
+    border-radius: 30px;
+    font-size: clamp(14px, 2vw, 16px);
+}
+
+.features-hero h1 {
+    margin-bottom: 20px;
+    color: #00ff88;
+    font-size: clamp(38px, 7vw, 58px);
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+    text-shadow: 0 0 15px #00ff88;
+}
+
+.features-hero p {
+    max-width: 850px;
+    margin: 0 auto;
+    color: #ddd;
+    font-size: clamp(16px, 2vw, 18px);
+    line-height: 1.8;
+}
+
+.feature-grid {
+    width: min(90%, 1200px);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 30px;
+}
+
+.feature-card {
+    min-width: 0;
+    padding: clamp(24px, 4vw, 35px);
+    background: rgba(0, 0, 0, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 6px solid #00ff88;
+    border-radius: 15px;
+    color: white;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+}
+
+.feature-card h2 {
+    margin-bottom: 15px;
+    color: #00ff88;
+    font-size: clamp(22px, 3vw, 28px);
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+.feature-card p {
+    color: #ddd;
+    font-size: clamp(16px, 2vw, 18px);
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+}
+
+.gameplay-section,
+.modules,
+.challenge-section,
+.progress-section,
+.cta {
+    width: min(90%, 1200px);
+    margin: clamp(55px, 8vw, 80px) auto;
+}
+
+.gameplay-section h1,
+.modules h1,
+.challenge-section h1,
+.progress-section h1,
+.cta h1 {
+    margin-bottom: 40px;
+    color: #00ff88;
+    font-size: clamp(34px, 6vw, 50px);
+    line-height: 1.15;
+    text-align: center;
+    overflow-wrap: anywhere;
+    text-shadow: 0 0 12px #00ff88;
+}
+
+.gameplay-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 30px;
+}
+
+.gameplay-grid .game-card:only-child {
+    grid-column: 1 / -1;
+    width: 50%;
+    justify-self: center;
+}
+
+.game-card {
+    min-width: 0;
+    padding: clamp(24px, 4vw, 30px);
+    background: rgba(0, 0, 0, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 6px solid #00ff88;
+    border-radius: 15px;
+    color: white;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.game-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+}
+
+.game-card h3 {
+    margin-bottom: 15px;
+    color: #00ff88;
+    font-size: clamp(20px, 3vw, 26px);
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+.game-card p {
+    color: #ddd;
+    font-size: clamp(16px, 2vw, 18px);
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+}
+
+.module-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.module {
+    min-width: 0;
+    padding: clamp(22px, 4vw, 30px);
+    background: rgba(0, 0, 0, 0.75);
+    border: 2px solid #00ff88;
+    border-radius: 15px;
+    color: white;
+    font-size: clamp(15px, 2vw, 18px);
+    font-weight: bold;
+    text-align: center;
+    overflow-wrap: anywhere;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: background 0.3s ease, color 0.3s ease, transform 0.3s ease;
+}
+
+.module:hover {
+    background: #00ff88;
+    color: #000;
+    transform: translateY(-4px);
+}
+
+.challenge-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.challenge-card {
+    min-width: 0;
+    padding: clamp(22px, 3vw, 30px);
+    background: rgba(0, 0, 0, 0.75);
+    border: 2px solid #00ff88;
+    border-radius: 15px;
+    color: white;
+    text-align: center;
+    overflow-wrap: anywhere;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.challenge-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.35);
+}
+
+.progress-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 25px;
+}
+
+.progress-card {
+    min-width: 0;
+    padding: clamp(24px, 4vw, 35px);
+    background: rgba(0, 0, 0, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 6px solid #00ff88;
+    border-radius: 15px;
+    color: white;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.progress-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+}
+
+.progress-card h2,
+.progress-card h3 {
+    margin-bottom: 15px;
+    color: #00ff88;
+    overflow-wrap: anywhere;
+}
+
+.progress-card p {
+    color: #ddd;
+    font-size: clamp(16px, 2vw, 18px);
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+}
+
+.cta {
+    padding: clamp(30px, 6vw, 50px);
+    background: rgba(0, 0, 0, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    color: white;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.cta p {
+    max-width: 800px;
+    margin: 20px auto 30px;
+    color: #ddd;
+    font-size: clamp(16px, 2vw, 18px);
+    line-height: 1.8;
+}
+
+.play-btn {
+    display: inline-block;
+    padding: 15px 35px;
+    color: white;
+    border: 2px solid #00ff88;
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: clamp(16px, 2vw, 18px);
+    transition: background 0.3s ease, color 0.3s ease, transform 0.3s ease;
+}
+
+.play-btn:hover {
+    background: #00ff88;
+    color: #000;
+    transform: translateY(-3px);
+}
+
+.footer {
+    width: 100%;
+    margin-top: 70px;
+    padding: 40px 20px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.footer-logo {
+    display: block;
+    width: 70px;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto 15px;
+}
+
+.footer h2 {
+    margin-bottom: 10px;
+    color: #00ff88;
+}
+
+.footer p {
+    color: #ddd;
+    line-height: 1.7;
+}
+
+@media (max-width: 1100px) {
+    .module-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .challenge-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    .features-hero {
+        width: calc(100% - 32px);
+        padding: 150px 30px 40px;
+    }
+
+    .feature-grid,
+    .gameplay-grid,
+    .progress-grid {
+        width: calc(100% - 32px);
+        grid-template-columns: 1fr;
+    }
+
+    .gameplay-grid .game-card:only-child {
+        grid-column: auto;
+        width: 100%;
+    }
+
+    .gameplay-section,
+    .modules,
+    .challenge-section,
+    .progress-section,
+    .cta {
+        width: calc(100% - 32px);
+    }
+}
+
+@media (max-width: 650px) {
+    .module-grid,
+    .challenge-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .features-hero {
+        padding: 155px 22px 35px;
+        border-radius: 15px;
+    }
+
+    .feature-card,
+    .game-card,
+    .progress-card {
+        border-left-width: 4px;
+    }
+
+    .gameplay-section h1,
+    .modules h1,
+    .challenge-section h1,
+    .progress-section h1,
+    .cta h1 {
+        margin-bottom: 30px;
+    }
+}
+
+@media (max-width: 480px) {
+    .features-hero {
+        width: calc(100% - 24px);
+        margin-bottom: 40px;
+        padding: 165px 18px 30px;
+    }
+
+    .feature-grid,
+    .gameplay-section,
+    .modules,
+    .challenge-section,
+    .progress-section,
+    .cta {
+        width: calc(100% - 24px);
+    }
+
+    .feature-grid {
+        gap: 22px;
+    }
+
+    .gameplay-grid,
+    .module-grid,
+    .challenge-grid,
+    .progress-grid {
+        gap: 20px;
+    }
+
+    .feature-card,
+    .game-card,
+    .module,
+    .challenge-card,
+    .progress-card {
+        padding: 22px 18px;
+    }
+
+    .cta {
+        padding: 30px 18px;
+    }
+
+    .play-btn {
+        width: 100%;
+        padding: 14px 20px;
+    }
+
+    .footer {
+        margin-top: 50px;
+        padding: 30px 16px;
+    }
+}
+
+@media (max-width: 360px) {
+    .features-hero,
+    .feature-grid,
+    .gameplay-section,
+    .modules,
+    .challenge-section,
+    .progress-section,
+    .cta {
+        width: calc(100% - 18px);
+    }
+
+    .features-hero {
+        padding-top: 175px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+
+    .feature-card:hover,
+    .game-card:hover,
+    .module:hover,
+    .challenge-card:hover,
+    .progress-card:hover,
+    .play-btn:hover {
+        transform: none;
+    }
+}
+
