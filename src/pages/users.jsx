@@ -28,6 +28,8 @@ import {
 } from "firebase/firestore";
 
 function Users() {
+    const API_URL = import.meta.env.VITE_API_URL || "";
+
     const [users, setUsers] = useState([]);
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState("all");
@@ -642,11 +644,11 @@ function Users() {
                 const idToken =
                     await auth.currentUser.getIdToken();
 
-                const response =
+               const response =
                     await fetch(
-                        "/api/create-instructor",
-                        {
-                            method: "POST",
+                    `${API_URL}/api/create-instructor`,
+                    {
+                        method: "POST",
 
                             headers: {
                                 "Content-Type":

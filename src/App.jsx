@@ -14,6 +14,7 @@ import Settings from "./pages/Settings";
 
 import InstructorDashboard from "./pages/InstructorDashboard";
 import InstructorStudents from "./pages/InstructorStudents";
+import InstructorQuestionnaires from "./pages/InstructorQuestionnaires";
 import InstructorSettings from "./pages/InstructorSettings";
 
 function App() {
@@ -52,7 +53,12 @@ function App() {
 
                 <Route
                     path="/register"
-                    element={<Navigate to="/login" replace />}
+                    element={
+                        <Navigate
+                            to="/login"
+                            replace
+                        />
+                    }
                 />
 
                 <Route
@@ -103,6 +109,11 @@ function App() {
                 <Route
                     path="/instructor/students"
                     element={<InstructorStudents />}
+                />
+
+                <Route
+                    path="/instructor/questionnaires"
+                    element={<InstructorQuestionnaires />}
                 />
 
                 <Route

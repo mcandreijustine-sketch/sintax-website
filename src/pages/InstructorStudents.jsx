@@ -30,6 +30,8 @@ import {
 } from "react-router-dom";
 
 function InstructorStudents() {
+    const API_URL = import.meta.env.VITE_API_URL || "";
+
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
 
@@ -635,8 +637,8 @@ function InstructorStudents() {
                         .getIdToken();
 
                 const response =
-                    await fetch(
-                        "/api/import-students",
+                     await fetch(
+                        `${API_URL}/api/import-students`,
                         {
                             method:
                                 "POST",

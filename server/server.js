@@ -120,6 +120,330 @@ const getUserRecord =
         };
     };
 
+const verifyInstructor =
+    async uid => {
+        const instructorData =
+            await getUserRecord(uid);
+
+        if (
+            !instructorData ||
+            instructorData.role !==
+                "instructor"
+        ) {
+            return {
+                allowed: false,
+                status: 403,
+                message:
+                    "Only instructors can manage questionnaires."
+            };
+        }
+
+        if (
+            instructorData.status ===
+            "inactive"
+        ) {
+            return {
+                allowed: false,
+                status: 403,
+                message:
+                    "This instructor account is inactive."
+            };
+        }
+
+        return {
+            allowed: true,
+            instructorData
+        };
+    };
+
+const normalizeQuestionType =
+    value => {
+        const type =
+            String(value || "")
+                .trim()
+                .toLowerCase()
+                .replace(
+                    /[\s-]+/g,
+                    "_"
+                );
+
+        if (
+            type ===
+                "multiple_choice" ||
+            type ===
+                "multiplechoice" ||
+            type ===
+                "mcq"
+        ) {
+            return "multiple_choice";
+        }
+
+        if (
+            type ===
+                "true_false" ||
+            type ===
+                "truefalse" ||
+            type ===
+                "tf"
+        ) {
+            return "true_false";
+        }
+
+        if (
+            type ===
+                "identification" ||
+            type ===
+                "identify"
+        ) {
+            return "identification";
+        }
+
+        return "";
+    };
+
+const validateQuestion =
+    question => {
+        const questionId =
+            String(
+                question?.questionId ||
+                ""
+            ).trim();
+
+        const npcId =
+            String(
+                question?.npcId ||
+                ""
+            ).trim();
+
+        const type =
+            normalizeQuestionType(
+                question?.type
+            );
+
+        const questionText =
+            String(
+                question?.question ||
+                ""
+            ).trim();
+
+        const choiceA =
+            String(
+                question?.choiceA ||
+                ""
+            ).trim();
+
+        const choiceB =
+            String(
+                question?.choiceB ||
+                ""
+            ).trim();
+
+        const choiceC =
+            String(
+                question?.choiceC ||
+                ""
+            ).trim();
+
+        const choiceD =
+            String(
+                question?.choiceD ||
+                ""
+            ).trim();
+
+        let correctAnswer =
+            String(
+                question?.correctAnswer ||
+                ""
+            ).trim();
+
+        const difficulty =
+            String(
+                question?.difficulty ||
+                "Easy"
+            ).trim();
+
+        if (
+            !questionId ||
+            !npcId ||
+            !type ||
+            !questionText ||
+            !correctAnswer
+        ) {
+            return {
+                valid: false,
+                message:
+                    "questionId, npcId, type, question, and correctAnswer are required."
+            };
+        }
+
+        if (
+            !/^[A-Za-z0-9_-]+$/.test(
+                questionId
+            )
+        ) {
+            return {
+                valid: false,
+                message:
+                    "questionId may only contain letters, numbers, underscores, and hyphens."
+            };
+        }
+
+        if (
+            !/^[A-Za-z0-9_-]+$/.test(
+                npcId
+            )
+        ) {
+            return {
+                valid: false,
+                message:
+                    "npcId may only contain letters, numbers, underscores, and hyphens."
+            };
+        }
+
+        const allowedDifficulties = [
+            "easy",
+            "medium",
+            "hard"
+        ];
+
+        if (
+            !allowedDifficulties.includes(
+                difficulty.toLowerCase()
+            )
+        ) {
+            return {
+                valid: false,
+                message:
+                    "Difficulty must be Easy, Medium, or Hard."
+            };
+        }
+
+        if (
+            type ===
+            "multiple_choice"
+        ) {
+            if (
+                !choiceA ||
+                !choiceB ||
+                !choiceC ||
+                !choiceD
+            ) {
+                return {
+                    valid: false,
+                    message:
+                        "Multiple-choice questions require choiceA, choiceB, choiceC, and choiceD."
+                };
+            }
+
+            correctAnswer =
+                correctAnswer
+                    .toUpperCase();
+
+            if (
+                ![
+                    "A",
+                    "B",
+                    "C",
+                    "D"
+                ].includes(
+                    correctAnswer
+                )
+            ) {
+                return {
+                    valid: false,
+                    message:
+                        "Multiple-choice correctAnswer must be A, B, C, or D."
+                };
+            }
+        }
+
+        if (
+            type ===
+            "true_false"
+        ) {
+            const answer =
+                correctAnswer
+                    .toLowerCase();
+
+            if (
+                answer !== "true" &&
+                answer !== "false"
+            ) {
+                return {
+                    valid: false,
+                    message:
+                        "True/False correctAnswer must be True or False."
+                };
+            }
+
+            correctAnswer =
+                answer === "true"
+                    ? "True"
+                    : "False";
+        }
+
+        if (
+            type ===
+            "identification"
+        ) {
+            if (!correctAnswer) {
+                return {
+                    valid: false,
+                    message:
+                        "Identification questions require a correct answer."
+                };
+            }
+        }
+
+        const normalizedDifficulty =
+            difficulty
+                .charAt(0)
+                .toUpperCase() +
+            difficulty
+                .slice(1)
+                .toLowerCase();
+
+        return {
+            valid: true,
+
+            data: {
+                questionId,
+                npcId,
+                type,
+                question:
+                    questionText,
+
+                choiceA:
+                    type ===
+                    "multiple_choice"
+                        ? choiceA
+                        : "",
+
+                choiceB:
+                    type ===
+                    "multiple_choice"
+                        ? choiceB
+                        : "",
+
+                choiceC:
+                    type ===
+                    "multiple_choice"
+                        ? choiceC
+                        : "",
+
+                choiceD:
+                    type ===
+                    "multiple_choice"
+                        ? choiceD
+                        : "",
+
+                correctAnswer,
+                difficulty:
+                    normalizedDifficulty
+            }
+        };
+    };
+
 app.get(
     "/",
     (
@@ -166,7 +490,8 @@ app.post(
 
             if (
                 !adminData ||
-                adminData.role !== "admin"
+                adminData.role !==
+                    "admin"
             ) {
                 return res
                     .status(403)
@@ -291,7 +616,9 @@ app.post(
 
             const userReference =
                 db
-                    .collection("users")
+                    .collection(
+                        "users"
+                    )
                     .doc(
                         instructorUID
                     );
@@ -435,7 +762,7 @@ app.post(
             if (
                 !instructorData ||
                 instructorData.role !==
-                "instructor"
+                    "instructor"
             ) {
                 return res
                     .status(403)
@@ -528,7 +855,7 @@ app.post(
                     students
                 ) ||
                 students.length ===
-                0
+                    0
             ) {
                 return res
                     .status(400)
@@ -552,8 +879,7 @@ app.post(
                     });
             }
 
-            const results =
-                [];
+            const results = [];
 
             const emails =
                 new Set();
@@ -564,7 +890,7 @@ app.post(
             for (
                 let index = 0;
                 index <
-                students.length;
+                    students.length;
                 index += 1
             ) {
                 const row =
@@ -855,6 +1181,637 @@ app.post(
                     message:
                         error.message ||
                         "Unable to import students."
+                });
+        }
+    }
+);
+
+app.post(
+    "/api/import-questions",
+    verifyToken,
+    async (
+        req,
+        res
+    ) => {
+        try {
+            const instructorUID =
+                req.user.uid;
+
+            const access =
+                await verifyInstructor(
+                    instructorUID
+                );
+
+            if (!access.allowed) {
+                return res
+                    .status(
+                        access.status
+                    )
+                    .json({
+                        success: false,
+                        message:
+                            access.message
+                    });
+            }
+
+            const instructorReference =
+                db
+                    .collection(
+                        "instructors"
+                    )
+                    .doc(
+                        instructorUID
+                    );
+
+            const instructorSnapshot =
+                await instructorReference
+                    .get();
+
+            if (
+                !instructorSnapshot.exists
+            ) {
+                await instructorReference
+                    .set({
+                        fullName:
+                            access
+                                .instructorData
+                                .fullName ||
+                            "",
+                        email:
+                            access
+                                .instructorData
+                                .email ||
+                            "",
+                        section:
+                            access
+                                .instructorData
+                                .section ||
+                            "",
+                        gender:
+                            access
+                                .instructorData
+                                .gender ||
+                            "",
+                        role:
+                            "instructor",
+                        status:
+                            access
+                                .instructorData
+                                .status ||
+                            "active",
+                        createdAt:
+                            access
+                                .instructorData
+                                .createdAt ||
+                            FieldValue
+                                .serverTimestamp()
+                    });
+            }
+
+            const questions =
+                req.body?.questions;
+
+            if (
+                !Array.isArray(
+                    questions
+                ) ||
+                questions.length ===
+                    0
+            ) {
+                return res
+                    .status(400)
+                    .json({
+                        success: false,
+                        message:
+                            "No question records were provided."
+                    });
+            }
+
+            if (
+                questions.length >
+                500
+            ) {
+                return res
+                    .status(400)
+                    .json({
+                        success: false,
+                        message:
+                            "A maximum of 500 questions can be imported at one time."
+                    });
+            }
+
+            const results = [];
+
+            const questionIds =
+                new Set();
+
+            for (
+                let index = 0;
+                index <
+                    questions.length;
+                index += 1
+            ) {
+                const row =
+                    questions[index];
+
+                const rowNumber =
+                    index + 2;
+
+                try {
+                    const validation =
+                        validateQuestion(
+                            row
+                        );
+
+                    if (
+                        !validation.valid
+                    ) {
+                        results.push({
+                            row:
+                                rowNumber,
+                            success:
+                                false,
+                            questionId:
+                                String(
+                                    row?.questionId ||
+                                    ""
+                                ).trim(),
+                            message:
+                                validation.message
+                        });
+
+                        continue;
+                    }
+
+                    const question =
+                        validation.data;
+
+                    if (
+                        questionIds.has(
+                            question.questionId
+                        )
+                    ) {
+                        results.push({
+                            row:
+                                rowNumber,
+                            success:
+                                false,
+                            questionId:
+                                question.questionId,
+                            message:
+                                "Duplicate questionId in CSV file."
+                        });
+
+                        continue;
+                    }
+
+                    questionIds.add(
+                        question.questionId
+                    );
+
+                    const questionReference =
+                        db
+                            .collection(
+                                "instructors"
+                            )
+                            .doc(
+                                instructorUID
+                            )
+                            .collection(
+                                "questions"
+                            )
+                            .doc(
+                                question.questionId
+                            );
+
+                    const existingQuestion =
+                        await questionReference
+                            .get();
+
+                    if (
+                        existingQuestion.exists
+                    ) {
+                        results.push({
+                            row:
+                                rowNumber,
+                            success:
+                                false,
+                            questionId:
+                                question.questionId,
+                            message:
+                                "This questionId already exists."
+                        });
+
+                        continue;
+                    }
+
+                    await questionReference
+                        .set({
+                            ...question,
+                            instructorId:
+                                instructorUID,
+                            createdBy:
+                                instructorUID,
+                            createdAt:
+                                FieldValue
+                                    .serverTimestamp(),
+                            updatedAt:
+                                FieldValue
+                                    .serverTimestamp()
+                        });
+
+                    results.push({
+                        row:
+                            rowNumber,
+                        success:
+                            true,
+                        questionId:
+                            question.questionId,
+                        npcId:
+                            question.npcId,
+                        type:
+                            question.type,
+                        message:
+                            "Question imported successfully."
+                    });
+                } catch (
+                    questionError
+                ) {
+                    console.error(
+                        `Question row ${rowNumber}:`,
+                        questionError
+                    );
+
+                    results.push({
+                        row:
+                            rowNumber,
+                        success:
+                            false,
+                        questionId:
+                            String(
+                                row?.questionId ||
+                                ""
+                            ).trim(),
+                        message:
+                            questionError.message ||
+                            "Unable to import question."
+                    });
+                }
+            }
+
+            const created =
+                results.filter(
+                    result =>
+                        result.success
+                ).length;
+
+            const failed =
+                results.length -
+                created;
+
+            return res.json({
+                success:
+                    failed === 0,
+                total:
+                    results.length,
+                created,
+                failed,
+                message:
+                    `${created} question(s) imported. ${failed} failed.`,
+                results
+            });
+        } catch (error) {
+            console.error(
+                "Import questions error:",
+                error
+            );
+
+            return res
+                .status(500)
+                .json({
+                    success: false,
+                    message:
+                        error.message ||
+                        "Unable to import questions."
+                });
+        }
+    }
+);
+
+app.get(
+    "/api/questions",
+    verifyToken,
+    async (
+        req,
+        res
+    ) => {
+        try {
+            const instructorUID =
+                req.user.uid;
+
+            const access =
+                await verifyInstructor(
+                    instructorUID
+                );
+
+            if (!access.allowed) {
+                return res
+                    .status(
+                        access.status
+                    )
+                    .json({
+                        success: false,
+                        message:
+                            access.message
+                    });
+            }
+
+            const snapshot =
+                await db
+                    .collection(
+                        "instructors"
+                    )
+                    .doc(
+                        instructorUID
+                    )
+                    .collection(
+                        "questions"
+                    )
+                    .get();
+
+            const questions =
+                snapshot.docs
+                    .map(
+                        document => ({
+                            id:
+                                document.id,
+                            ...document.data()
+                        })
+                    )
+                    .sort(
+                        (
+                            first,
+                            second
+                        ) =>
+                            String(
+                                first.questionId ||
+                                ""
+                            ).localeCompare(
+                                String(
+                                    second.questionId ||
+                                    ""
+                                )
+                            )
+                    );
+
+            return res.json({
+                success: true,
+                total:
+                    questions.length,
+                questions
+            });
+        } catch (error) {
+            console.error(
+                "Get questions error:",
+                error
+            );
+
+            return res
+                .status(500)
+                .json({
+                    success: false,
+                    message:
+                        error.message ||
+                        "Unable to load questions."
+                });
+        }
+    }
+);
+
+app.put(
+    "/api/questions/:questionId",
+    verifyToken,
+    async (
+        req,
+        res
+    ) => {
+        try {
+            const instructorUID =
+                req.user.uid;
+
+            const access =
+                await verifyInstructor(
+                    instructorUID
+                );
+
+            if (!access.allowed) {
+                return res
+                    .status(
+                        access.status
+                    )
+                    .json({
+                        success: false,
+                        message:
+                            access.message
+                    });
+            }
+
+            const questionId =
+                String(
+                    req.params
+                        .questionId ||
+                    ""
+                ).trim();
+
+            if (!questionId) {
+                return res
+                    .status(400)
+                    .json({
+                        success: false,
+                        message:
+                            "Question ID is required."
+                    });
+            }
+
+            const questionReference =
+                db
+                    .collection(
+                        "instructors"
+                    )
+                    .doc(
+                        instructorUID
+                    )
+                    .collection(
+                        "questions"
+                    )
+                    .doc(
+                        questionId
+                    );
+
+            const existingQuestion =
+                await questionReference
+                    .get();
+
+            if (
+                !existingQuestion.exists
+            ) {
+                return res
+                    .status(404)
+                    .json({
+                        success: false,
+                        message:
+                            "Question was not found."
+                    });
+            }
+
+            const validation =
+                validateQuestion({
+                    ...req.body,
+                    questionId
+                });
+
+            if (
+                !validation.valid
+            ) {
+                return res
+                    .status(400)
+                    .json({
+                        success: false,
+                        message:
+                            validation.message
+                    });
+            }
+
+            await questionReference
+                .update({
+                    ...validation.data,
+                    instructorId:
+                        instructorUID,
+                    updatedAt:
+                        FieldValue
+                            .serverTimestamp()
+                });
+
+            return res.json({
+                success: true,
+                message:
+                    "Question updated successfully."
+            });
+        } catch (error) {
+            console.error(
+                "Update question error:",
+                error
+            );
+
+            return res
+                .status(500)
+                .json({
+                    success: false,
+                    message:
+                        error.message ||
+                        "Unable to update question."
+                });
+        }
+    }
+);
+
+app.delete(
+    "/api/questions/:questionId",
+    verifyToken,
+    async (
+        req,
+        res
+    ) => {
+        try {
+            const instructorUID =
+                req.user.uid;
+
+            const access =
+                await verifyInstructor(
+                    instructorUID
+                );
+
+            if (!access.allowed) {
+                return res
+                    .status(
+                        access.status
+                    )
+                    .json({
+                        success: false,
+                        message:
+                            access.message
+                    });
+            }
+
+            const questionId =
+                String(
+                    req.params
+                        .questionId ||
+                    ""
+                ).trim();
+
+            if (!questionId) {
+                return res
+                    .status(400)
+                    .json({
+                        success: false,
+                        message:
+                            "Question ID is required."
+                    });
+            }
+
+            const questionReference =
+                db
+                    .collection(
+                        "instructors"
+                    )
+                    .doc(
+                        instructorUID
+                    )
+                    .collection(
+                        "questions"
+                    )
+                    .doc(
+                        questionId
+                    );
+
+            const existingQuestion =
+                await questionReference
+                    .get();
+
+            if (
+                !existingQuestion.exists
+            ) {
+                return res
+                    .status(404)
+                    .json({
+                        success: false,
+                        message:
+                            "Question was not found."
+                    });
+            }
+
+            await questionReference
+                .delete();
+
+            return res.json({
+                success: true,
+                message:
+                    "Question deleted successfully."
+            });
+        } catch (error) {
+            console.error(
+                "Delete question error:",
+                error
+            );
+
+            return res
+                .status(500)
+                .json({
+                    success: false,
+                    message:
+                        error.message ||
+                        "Unable to delete question."
                 });
         }
     }

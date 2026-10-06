@@ -10,10 +10,12 @@ import {
 
 import "react-circular-progressbar/dist/styles.css";
 
-import { db } from "../firebase";
+import { auth, db } from "../firebase";
 
 import {
   collection,
+  doc,
+  getDoc,
   getDocs,
   query,
   orderBy,
@@ -36,12 +38,23 @@ import {
 } from "recharts";
 
 function AdminDashboard() {
-  const [totalUsers, setTotalUsers] = useState(0);
-  const [students, setStudents] = useState(0);
-  const [instructors, setInstructors] = useState(0);
-  const [activeUsers, setActiveUsers] = useState(0);
+  const [adminName, setAdminName] =
+    useState("Administrator");
 
-  const [activities, setActivities] = useState([]);
+  const [totalUsers, setTotalUsers] =
+    useState(0);
+
+  const [students, setStudents] =
+    useState(0);
+
+  const [instructors, setInstructors] =
+    useState(0);
+
+  const [activeUsers, setActiveUsers] =
+    useState(0);
+
+  const [activities, setActivities] =
+    useState([]);
 
   const [registrationData, setRegistrationData] =
     useState([]);
@@ -52,6 +65,31 @@ function AdminDashboard() {
   useEffect(() => {
     const loadDashboard = async () => {
       try {
+        const currentUser = auth.currentUser;
+
+        if (currentUser) {
+          const adminRef = doc(
+            db,
+            "users",
+            currentUser.uid
+          );
+
+          const adminSnap =
+            await getDoc(adminRef);
+
+          if (adminSnap.exists()) {
+            const adminData =
+              adminSnap.data();
+
+            setAdminName(
+              adminData.fullName ||
+                adminData.fullname ||
+                adminData.name ||
+                "Administrator"
+            );
+          }
+        }
+
         const snap = await getDocs(
           collection(db, "users")
         );
@@ -83,35 +121,42 @@ function AdminDashboard() {
         snap.forEach((document) => {
           const user = document.data();
 
-          /* STUDENTS */
           if (user.role === "student") {
             s++;
 
-            if (user.yearLevel === "1st Year") {
+            if (
+              user.yearLevel === "1st Year"
+            ) {
               yearLevels["1st Year"]++;
             }
 
-            if (user.yearLevel === "2nd Year") {
+            if (
+              user.yearLevel === "2nd Year"
+            ) {
               yearLevels["2nd Year"]++;
             }
           }
 
-          /* INSTRUCTORS */
-          if (user.role === "instructor") {
+          if (
+            user.role === "instructor"
+          ) {
             i++;
           }
 
-          /* ACTIVE USERS */
-          if (user.status === "active") {
+          if (
+            user.status === "active"
+          ) {
             a++;
           }
 
-          /* MONTHLY REGISTRATION */
           if (user.createdAt) {
             const date =
-              user.createdAt instanceof Timestamp
+              user.createdAt instanceof
+              Timestamp
                 ? user.createdAt.toDate()
-                : new Date(user.createdAt);
+                : new Date(
+                    user.createdAt
+                  );
 
             const month =
               date.toLocaleString(
@@ -130,19 +175,15 @@ function AdminDashboard() {
           }
         });
 
-        /* REGISTRATION LINE GRAPH */
-
         setRegistrationData(
-          Object.keys(monthlyData).map(
-            (month) => ({
-              month,
-              users:
-                monthlyData[month],
-            })
-          )
+          Object.keys(
+            monthlyData
+          ).map((month) => ({
+            month,
+            users:
+              monthlyData[month],
+          }))
         );
-
-        /* YEAR LEVEL PIE GRAPH */
 
         setYearLevelData([
           {
@@ -162,8 +203,6 @@ function AdminDashboard() {
         setInstructors(i);
         setActiveUsers(a);
 
-        /* RECENT ACTIVITIES */
-
         const recentQ = query(
           collection(db, "users"),
           orderBy(
@@ -178,9 +217,9 @@ function AdminDashboard() {
 
         setActivities(
           recentSnap.docs.map(
-            (doc) => ({
-              id: doc.id,
-              ...doc.data(),
+            (document) => ({
+              id: document.id,
+              ...document.data(),
             })
           )
         );
@@ -207,9 +246,7 @@ function AdminDashboard() {
     label
   ) => (
     <div className="stat-card">
-
       <div className="progress-wrapper">
-
         <CircularProgressbar
           value={value}
           text={String(text)}
@@ -221,15 +258,11 @@ function AdminDashboard() {
               "round",
           })}
         />
-
       </div>
 
       <h3>{label}</h3>
-
     </div>
   );
-
-  /* PIE COLORS */
 
   const YEAR_COLORS = [
     "#10b981",
@@ -245,19 +278,11 @@ function AdminDashboard() {
 
   return (
     <div className="admin-dashboard">
-
       <AdminBar />
 
       <main className="dashboard-content">
-
-        {/* =====================
-            HEADER
-        ===================== */}
-
         <div className="dashboard-header">
-
           <div>
-
             <h1>
               Admin Dashboard
             </h1>
@@ -266,38 +291,29 @@ function AdminDashboard() {
               Welcome back,
               Administrator.
             </p>
-
           </div>
 
           <div className="admin-profile">
-
             <img
-              src="https://ui-avatars.com/api/?name=Administrator"
-              alt="Administrator"
+              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                adminName
+              )}`}
+              alt={adminName}
             />
 
             <div>
-
               <h3>
-                Administrator
+                {adminName}
               </h3>
 
               <span>
                 System Administrator
               </span>
-
             </div>
-
           </div>
-
         </div>
 
-        {/* =====================
-            STATISTICS
-        ===================== */}
-
         <div className="stats-grid">
-
           {donut(
             100,
             totalUsers,
@@ -325,21 +341,11 @@ function AdminDashboard() {
             "#ef4444",
             "Active Users"
           )}
-
         </div>
 
-        {/* =====================
-            TWO GRAPHS
-        ===================== */}
-
         <div className="dashboard-charts-grid">
-
-          {/* USER REGISTRATION */}
-
           <section className="card dashboard-chart-card">
-
             <div className="dashboard-chart-heading">
-
               <h2>
                 User Registration
               </h2>
@@ -348,16 +354,13 @@ function AdminDashboard() {
                 Registered accounts
                 by month.
               </p>
-
             </div>
 
             <div className="registration-chart">
-
               <ResponsiveContainer
                 width="100%"
                 height="100%"
               >
-
                 <LineChart
                   data={
                     registrationData
@@ -369,7 +372,6 @@ function AdminDashboard() {
                     bottom: 5,
                   }}
                 >
-
                   <CartesianGrid
                     strokeDasharray="3 3"
                     stroke="#333"
@@ -421,21 +423,13 @@ function AdminDashboard() {
                       r: 6,
                     }}
                   />
-
                 </LineChart>
-
               </ResponsiveContainer>
-
             </div>
-
           </section>
 
-          {/* YEAR LEVEL PIE */}
-
           <section className="card dashboard-chart-card">
-
             <div className="dashboard-chart-heading">
-
               <h2>
                 Students by Year Level
               </h2>
@@ -445,18 +439,14 @@ function AdminDashboard() {
                 registered student
                 accounts.
               </p>
-
             </div>
 
             <div className="year-pie-container">
-
               <ResponsiveContainer
                 width="100%"
                 height="100%"
               >
-
                 <PieChart>
-
                   <Pie
                     data={
                       yearLevelData
@@ -469,13 +459,11 @@ function AdminDashboard() {
                     outerRadius={110}
                     paddingAngle={4}
                   >
-
                     {yearLevelData.map(
                       (
                         entry,
                         index
                       ) => (
-
                         <Cell
                           key={
                             entry.name
@@ -487,10 +475,8 @@ function AdminDashboard() {
                             ]
                           }
                         />
-
                       )
                     )}
-
                   </Pie>
 
                   <Tooltip
@@ -510,15 +496,10 @@ function AdminDashboard() {
                     verticalAlign="bottom"
                     height={40}
                   />
-
                 </PieChart>
-
               </ResponsiveContainer>
 
-              {/* CENTER TEXT */}
-
               <div className="pie-center-text">
-
                 <strong>
                   {
                     totalYearStudents
@@ -528,23 +509,13 @@ function AdminDashboard() {
                 <span>
                   Students
                 </span>
-
               </div>
-
             </div>
-
           </section>
-
         </div>
 
-        {/* =====================
-            RECENT ACTIVITIES
-        ===================== */}
-
         <section className="card recent-activities-card">
-
           <div className="dashboard-chart-heading">
-
             <h2>
               Recent Activities
             </h2>
@@ -553,32 +524,24 @@ function AdminDashboard() {
               Latest registered
               accounts.
             </p>
-
           </div>
 
           <ul className="activity-list">
-
             {activities.length ===
             0 ? (
-
               <li>
                 No recent
                 registrations.
               </li>
-
             ) : (
-
               activities.map(
                 (user) => (
-
                   <li key={user.id}>
-
                     <div className="activity-icon">
                       ✓
                     </div>
 
                     <div className="activity-info">
-
                       <strong>
                         {user.fullName ||
                           user.fullname ||
@@ -592,22 +555,14 @@ function AdminDashboard() {
                           ? ` as ${user.role}`
                           : ""}
                       </span>
-
                     </div>
-
                   </li>
-
                 )
               )
-
             )}
-
           </ul>
-
         </section>
-
       </main>
-
     </div>
   );
 }

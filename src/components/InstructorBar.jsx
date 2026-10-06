@@ -19,22 +19,26 @@ function InstructorBar() {
 
             <div className="instructor-links">
                 <Link to="/instructor/dashboard">
-                     Dashboard
+                    Dashboard
                 </Link>
 
                 <Link to="/instructor/students">
-                     Students
+                    Students
+                </Link>
+
+                <Link to="/instructor/questionnaires">
+                    Questionnaires
                 </Link>
 
                 <Link to="/instructor/settings">
-                     Settings
+                    Settings
                 </Link>
 
                 <Link
                     to="/login"
                     className="instructor-logout-button"
                 >
-                     Logout
+                    Logout
                 </Link>
             </div>
         </nav>

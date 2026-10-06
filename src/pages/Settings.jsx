@@ -1,32 +1,52 @@
 import "../css/settings.css";
 import AdminBar from "../components/AdminBar";
+
 import { useEffect, useState } from "react";
+
 import { auth, db } from "../firebase";
+
 import {
     EmailAuthProvider,
     reauthenticateWithCredential,
-    updateEmail,
     updatePassword
 } from "firebase/auth";
+
 import {
+    collection,
     doc,
     getDoc,
+    getDocs,
     serverTimestamp,
-    setDoc
+    setDoc,
+    Timestamp
 } from "firebase/firestore";
 
 function Settings() {
     const [systemName, setSystemName] = useState("SINTAX: Secret Code");
     const [version, setVersion] = useState("Version 1.0");
+
+    const [adminFullName, setAdminFullName] = useState("");
     const [adminEmail, setAdminEmail] = useState("");
+
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
-    const [allowStudentRegistration, setAllowStudentRegistration] = useState(true);
-    const [enableInstructorAccounts, setEnableInstructorAccounts] = useState(true);
+    const [confirmPassword, setConfirmPassword] = useState("");
+
+    const [allowStudentRegistration, setAllowStudentRegistration] =
+        useState(true);
+
+    const [enableInstructorAccounts, setEnableInstructorAccounts] =
+        useState(true);
+
     const [loading, setLoading] = useState(true);
     const [savingSystem, setSavingSystem] = useState(false);
+    const [savingProfile, setSavingProfile] = useState(false);
+    const [changingPassword, setChangingPassword] = useState(false);
     const [savingSecurity, setSavingSecurity] = useState(false);
-    const [updatingAccount, setUpdatingAccount] = useState(false);
+
+    const [backingUp, setBackingUp] = useState(false);
+    const [restoring, setRestoring] = useState(false);
+
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
 
@@ -57,11 +77,48 @@ function Settings() {
                     );
                 }
 
-                if (auth.currentUser) {
-                    setAdminEmail(auth.currentUser.email || "");
+                const currentUser = auth.currentUser;
+
+                if (currentUser) {
+                    setAdminEmail(
+                        currentUser.email || ""
+                    );
+
+                    const adminSnapshot = await getDoc(
+                        doc(
+                            db,
+                            "users",
+                            currentUser.uid
+                        )
+                    );
+
+                    if (adminSnapshot.exists()) {
+                        const adminData =
+                            adminSnapshot.data();
+
+                        setAdminFullName(
+                            adminData.fullName ||
+                            adminData.fullname ||
+                            adminData.name ||
+                            ""
+                        );
+
+                        setAdminEmail(
+                            adminData.email ||
+                            currentUser.email ||
+                            ""
+                        );
+                    }
                 }
             } catch (loadError) {
-                setError(loadError.message);
+                console.error(
+                    "Settings loading error:",
+                    loadError
+                );
+
+                setError(
+                    loadError.message
+                );
             } finally {
                 setLoading(false);
             }
@@ -86,221 +143,875 @@ function Settings() {
 
     const saveSystemSettings = async event => {
         event.preventDefault();
+
         setSavingSystem(true);
 
         try {
             await setDoc(
-                doc(db, "settings", "system"),
+                doc(
+                    db,
+                    "settings",
+                    "system"
+                ),
                 {
-                    systemName: systemName.trim(),
+                    systemName:
+                        systemName.trim(),
+
                     version,
-                    updatedAt: serverTimestamp(),
-                    updatedBy: auth.currentUser?.uid || ""
+
+                    updatedAt:
+                        serverTimestamp(),
+
+                    updatedBy:
+                        auth.currentUser?.uid ||
+                        ""
                 },
                 {
                     merge: true
                 }
             );
 
-            showMessage("System information saved successfully.");
+            showMessage(
+                "System information saved successfully."
+            );
         } catch (saveError) {
-            showError(saveError.message);
+            console.error(
+                "System settings error:",
+                saveError
+            );
+
+            showError(
+                saveError.message
+            );
         } finally {
             setSavingSystem(false);
         }
     };
 
-    const saveSecuritySettings = async event => {
+    const saveProfileInformation = async event => {
         event.preventDefault();
-        setSavingSecurity(true);
+
+        const currentUser =
+            auth.currentUser;
+
+        if (!currentUser) {
+            showError(
+                "No administrator is currently logged in."
+            );
+
+            return;
+        }
+
+        const fullName =
+            adminFullName.trim();
+
+        if (!fullName) {
+            showError(
+                "Please enter your full name."
+            );
+
+            return;
+        }
+
+        setSavingProfile(true);
 
         try {
             await setDoc(
-                doc(db, "settings", "system"),
+                doc(
+                    db,
+                    "users",
+                    currentUser.uid
+                ),
                 {
-                    allowStudentRegistration,
-                    enableInstructorAccounts,
-                    updatedAt: serverTimestamp(),
-                    updatedBy: auth.currentUser?.uid || ""
+                    fullName,
+
+                    email:
+                        currentUser.email ||
+                        adminEmail,
+
+                    updatedAt:
+                        serverTimestamp()
                 },
                 {
                     merge: true
                 }
             );
 
-            showMessage("Security settings saved successfully.");
-        } catch (saveError) {
-            showError(saveError.message);
+            setAdminFullName(
+                fullName
+            );
+
+            showMessage(
+                "Profile information updated successfully."
+            );
+        } catch (profileError) {
+            console.error(
+                "Profile update error:",
+                profileError
+            );
+
+            showError(
+                profileError.message
+            );
         } finally {
-            setSavingSecurity(false);
+            setSavingProfile(false);
         }
     };
 
-    const updateAdministratorAccount = async event => {
+    const changeAdministratorPassword = async event => {
         event.preventDefault();
 
-        const currentUser = auth.currentUser;
+        const currentUser =
+            auth.currentUser;
 
-        if (!currentUser || !currentUser.email) {
-            showError("No administrator is currently logged in.");
+        if (
+            !currentUser ||
+            !currentUser.email
+        ) {
+            showError(
+                "No administrator is currently logged in."
+            );
+
             return;
         }
 
         if (!currentPassword) {
-            showError("Enter your current password.");
+            showError(
+                "Please enter your current password."
+            );
+
             return;
         }
 
-        if (newPassword && newPassword.length < 6) {
-            showError("The new password must contain at least 6 characters.");
+        if (!newPassword) {
+            showError(
+                "Please enter a new password."
+            );
+
             return;
         }
 
-        setUpdatingAccount(true);
+        if (newPassword.length < 6) {
+            showError(
+                "The new password must contain at least 6 characters."
+            );
+
+            return;
+        }
+
+        if (
+            newPassword !==
+            confirmPassword
+        ) {
+            showError(
+                "New password and confirm password do not match."
+            );
+
+            return;
+        }
+
+        if (
+            currentPassword ===
+            newPassword
+        ) {
+            showError(
+                "Your new password must be different from your current password."
+            );
+
+            return;
+        }
+
+        setChangingPassword(true);
 
         try {
-            const credential = EmailAuthProvider.credential(
-                currentUser.email,
-                currentPassword
-            );
+            const credential =
+                EmailAuthProvider.credential(
+                    currentUser.email,
+                    currentPassword
+                );
 
             await reauthenticateWithCredential(
                 currentUser,
                 credential
             );
 
-            const normalizedEmail = adminEmail.trim().toLowerCase();
-
-            if (
-                normalizedEmail &&
-                normalizedEmail !== currentUser.email
-            ) {
-                await updateEmail(
-                    currentUser,
-                    normalizedEmail
-                );
-
-                await setDoc(
-                    doc(db, "users", currentUser.uid),
-                    {
-                        email: normalizedEmail
-                    },
-                    {
-                        merge: true
-                    }
-                );
-            }
-
-            if (newPassword) {
-                await updatePassword(
-                    currentUser,
-                    newPassword
-                );
-            }
+            await updatePassword(
+                currentUser,
+                newPassword
+            );
 
             setCurrentPassword("");
             setNewPassword("");
+            setConfirmPassword("");
 
-            showMessage("Administrator account updated successfully.");
-        } catch (accountError) {
-            showError(accountError.message);
+            showMessage(
+                "Password changed successfully."
+            );
+        } catch (passwordError) {
+            console.error(
+                "Password change error:",
+                passwordError
+            );
+
+            if (
+                passwordError.code ===
+                    "auth/invalid-credential" ||
+                passwordError.code ===
+                    "auth/wrong-password"
+            ) {
+                showError(
+                    "Your current password is incorrect."
+                );
+            } else if (
+                passwordError.code ===
+                "auth/weak-password"
+            ) {
+                showError(
+                    "The new password is too weak."
+                );
+            } else if (
+                passwordError.code ===
+                "auth/requires-recent-login"
+            ) {
+                showError(
+                    "Please log out and log in again before changing your password."
+                );
+            } else if (
+                passwordError.code ===
+                "auth/too-many-requests"
+            ) {
+                showError(
+                    "Too many attempts. Please wait before trying again."
+                );
+            } else {
+                showError(
+                    passwordError.message
+                );
+            }
         } finally {
-            setUpdatingAccount(false);
+            setChangingPassword(false);
         }
     };
 
-    const backupData = async () => {
+    const saveSecuritySettings = async event => {
+        event.preventDefault();
+
+        setSavingSecurity(true);
+
         try {
-            const settingsSnapshot = await getDoc(
-                doc(db, "settings", "system")
-            );
-
-            const backup = {
-                exportedAt: new Date().toISOString(),
-                settings: settingsSnapshot.exists()
-                    ? settingsSnapshot.data()
-                    : {}
-            };
-
-            const file = new Blob(
-                [JSON.stringify(backup, null, 2)],
+            await setDoc(
+                doc(
+                    db,
+                    "settings",
+                    "system"
+                ),
                 {
-                    type: "application/json"
+                    allowStudentRegistration,
+
+                    enableInstructorAccounts,
+
+                    updatedAt:
+                        serverTimestamp(),
+
+                    updatedBy:
+                        auth.currentUser?.uid ||
+                        ""
+                },
+                {
+                    merge: true
                 }
             );
 
-            const downloadUrl = URL.createObjectURL(file);
-            const downloadLink = document.createElement("a");
+            showMessage(
+                "Security settings saved successfully."
+            );
+        } catch (saveError) {
+            console.error(
+                "Security settings error:",
+                saveError
+            );
 
-            downloadLink.href = downloadUrl;
-            downloadLink.download = `sintax-settings-backup-${Date.now()}.json`;
-            downloadLink.click();
-
-            URL.revokeObjectURL(downloadUrl);
-
-            showMessage("Settings backup downloaded successfully.");
-        } catch (backupError) {
-            showError(backupError.message);
+            showError(
+                saveError.message
+            );
+        } finally {
+            setSavingSecurity(false);
         }
     };
 
-    const restoreBackup = event => {
-        const selectedFile = event.target.files?.[0];
+    const serializeValue = value => {
+        if (value instanceof Timestamp) {
+            return {
+                __type: "timestamp",
+                seconds: value.seconds,
+                nanoseconds: value.nanoseconds
+            };
+        }
+
+        if (Array.isArray(value)) {
+            return value.map(
+                item => serializeValue(item)
+            );
+        }
+
+        if (
+            value !== null &&
+            typeof value === "object"
+        ) {
+            const result = {};
+
+            Object.entries(value).forEach(
+                ([key, item]) => {
+                    result[key] =
+                        serializeValue(item);
+                }
+            );
+
+            return result;
+        }
+
+        return value;
+    };
+
+    const deserializeValue = value => {
+        if (Array.isArray(value)) {
+            return value.map(
+                item => deserializeValue(item)
+            );
+        }
+
+        if (
+            value !== null &&
+            typeof value === "object"
+        ) {
+            if (
+                value.__type ===
+                "timestamp"
+            ) {
+                return new Timestamp(
+                    value.seconds,
+                    value.nanoseconds
+                );
+            }
+
+            const result = {};
+
+            Object.entries(value).forEach(
+                ([key, item]) => {
+                    result[key] =
+                        deserializeValue(item);
+                }
+            );
+
+            return result;
+        }
+
+        return value;
+    };
+
+    const backupCollection = async collectionName => {
+        const snapshot =
+            await getDocs(
+                collection(
+                    db,
+                    collectionName
+                )
+            );
+
+        const documents = {};
+
+        snapshot.forEach(
+            documentSnapshot => {
+                documents[
+                    documentSnapshot.id
+                ] = serializeValue(
+                    documentSnapshot.data()
+                );
+            }
+        );
+
+        return documents;
+    };
+
+    const backupInstructorData = async () => {
+        const instructorsSnapshot =
+            await getDocs(
+                collection(
+                    db,
+                    "instructors"
+                )
+            );
+
+        const instructors = {};
+
+        for (
+            const instructorDocument
+            of instructorsSnapshot.docs
+        ) {
+            const instructorId =
+                instructorDocument.id;
+
+            const studentsSnapshot =
+                await getDocs(
+                    collection(
+                        db,
+                        "instructors",
+                        instructorId,
+                        "students"
+                    )
+                );
+
+            const questionsSnapshot =
+                await getDocs(
+                    collection(
+                        db,
+                        "instructors",
+                        instructorId,
+                        "questions"
+                    )
+                );
+
+            const students = {};
+            const questions = {};
+
+            studentsSnapshot.forEach(
+                studentDocument => {
+                    students[
+                        studentDocument.id
+                    ] = serializeValue(
+                        studentDocument.data()
+                    );
+                }
+            );
+
+            questionsSnapshot.forEach(
+                questionDocument => {
+                    questions[
+                        questionDocument.id
+                    ] = serializeValue(
+                        questionDocument.data()
+                    );
+                }
+            );
+
+            instructors[instructorId] = {
+                data: serializeValue(
+                    instructorDocument.data()
+                ),
+                students,
+                questions
+            };
+        }
+
+        return instructors;
+    };
+
+    const backupDatabase = async () => {
+        const currentUser =
+            auth.currentUser;
+
+        if (!currentUser) {
+            showError(
+                "No administrator is currently logged in."
+            );
+
+            return;
+        }
+
+        setBackingUp(true);
+
+        try {
+            const users =
+                await backupCollection(
+                    "users"
+                );
+
+            const settings =
+                await backupCollection(
+                    "settings"
+                );
+
+            const instructors =
+                await backupInstructorData();
+
+            const backup = {
+                backupType:
+                    "SINTAX_FIRESTORE_DATABASE",
+
+                backupVersion: 1,
+
+                exportedAt:
+                    new Date().toISOString(),
+
+                exportedBy:
+                    currentUser.uid,
+
+                database: {
+                    users,
+                    settings,
+                    instructors
+                }
+            };
+
+            const file =
+                new Blob(
+                    [
+                        JSON.stringify(
+                            backup,
+                            null,
+                            2
+                        )
+                    ],
+                    {
+                        type:
+                            "application/json"
+                    }
+                );
+
+            const downloadUrl =
+                URL.createObjectURL(
+                    file
+                );
+
+            const downloadLink =
+                document.createElement(
+                    "a"
+                );
+
+            const date =
+                new Date();
+
+            const fileDate =
+                `${date.getFullYear()}-` +
+                `${String(
+                    date.getMonth() + 1
+                ).padStart(2, "0")}-` +
+                `${String(
+                    date.getDate()
+                ).padStart(2, "0")}`;
+
+            downloadLink.href =
+                downloadUrl;
+
+            downloadLink.download =
+                `sintax-database-backup-${fileDate}.json`;
+
+            document.body.appendChild(
+                downloadLink
+            );
+
+            downloadLink.click();
+
+            document.body.removeChild(
+                downloadLink
+            );
+
+            URL.revokeObjectURL(
+                downloadUrl
+            );
+
+            showMessage(
+                "Database backup downloaded successfully."
+            );
+        } catch (backupError) {
+            console.error(
+                "Database backup error:",
+                backupError
+            );
+
+            showError(
+                backupError.message ||
+                "Unable to backup the database."
+            );
+        } finally {
+            setBackingUp(false);
+        }
+    };
+
+    const restoreDocuments = async (
+        collectionName,
+        documents
+    ) => {
+        if (
+            !documents ||
+            typeof documents !== "object"
+        ) {
+            return;
+        }
+
+        for (
+            const [documentId, data]
+            of Object.entries(documents)
+        ) {
+            await setDoc(
+                doc(
+                    db,
+                    collectionName,
+                    documentId
+                ),
+                deserializeValue(data),
+                {
+                    merge: false
+                }
+            );
+        }
+    };
+
+    const restoreInstructorData = async instructors => {
+        if (
+            !instructors ||
+            typeof instructors !== "object"
+        ) {
+            return;
+        }
+
+        for (
+            const [instructorId, instructor]
+            of Object.entries(instructors)
+        ) {
+            await setDoc(
+                doc(
+                    db,
+                    "instructors",
+                    instructorId
+                ),
+                deserializeValue(
+                    instructor.data || {}
+                ),
+                {
+                    merge: false
+                }
+            );
+
+            if (instructor.students) {
+                for (
+                    const [studentId, studentData]
+                    of Object.entries(
+                        instructor.students
+                    )
+                ) {
+                    await setDoc(
+                        doc(
+                            db,
+                            "instructors",
+                            instructorId,
+                            "students",
+                            studentId
+                        ),
+                        deserializeValue(
+                            studentData
+                        ),
+                        {
+                            merge: false
+                        }
+                    );
+                }
+            }
+
+            if (instructor.questions) {
+                for (
+                    const [questionId, questionData]
+                    of Object.entries(
+                        instructor.questions
+                    )
+                ) {
+                    await setDoc(
+                        doc(
+                            db,
+                            "instructors",
+                            instructorId,
+                            "questions",
+                            questionId
+                        ),
+                        deserializeValue(
+                            questionData
+                        ),
+                        {
+                            merge: false
+                        }
+                    );
+                }
+            }
+        }
+    };
+
+    const restoreDatabase = event => {
+        const selectedFile =
+            event.target.files?.[0];
 
         if (!selectedFile) {
             return;
         }
 
-        const reader = new FileReader();
+        const currentUser =
+            auth.currentUser;
 
-        reader.onload = async loadEvent => {
-            try {
-                const backup = JSON.parse(loadEvent.target.result);
-                const restoredSettings = backup.settings;
+        if (!currentUser) {
+            showError(
+                "No administrator is currently logged in."
+            );
 
-                if (!restoredSettings) {
-                    throw new Error("Invalid backup file.");
-                }
+            event.target.value = "";
+            return;
+        }
 
-                await setDoc(
-                    doc(db, "settings", "system"),
-                    {
-                        ...restoredSettings,
-                        restoredAt: serverTimestamp(),
-                        restoredBy: auth.currentUser?.uid || ""
-                    },
-                    {
-                        merge: true
+        const confirmed =
+            window.confirm(
+                "Restore this database backup? Existing documents with the same IDs will be replaced with the backup data."
+            );
+
+        if (!confirmed) {
+            event.target.value = "";
+            return;
+        }
+
+        const reader =
+            new FileReader();
+
+        setRestoring(true);
+
+        reader.onload =
+            async loadEvent => {
+                try {
+                    const backup =
+                        JSON.parse(
+                            loadEvent.target.result
+                        );
+
+                    if (
+                        backup.backupType !==
+                        "SINTAX_FIRESTORE_DATABASE"
+                    ) {
+                        throw new Error(
+                            "Invalid SINTAX database backup file."
+                        );
                     }
-                );
 
-                setSystemName(
-                    restoredSettings.systemName || "SINTAX: Secret Code"
-                );
+                    if (
+                        !backup.database ||
+                        typeof backup.database !==
+                            "object"
+                    ) {
+                        throw new Error(
+                            "The backup file does not contain database data."
+                        );
+                    }
 
-                setVersion(
-                    restoredSettings.version || "Version 1.0"
-                );
+                    await restoreDocuments(
+                        "users",
+                        backup.database.users
+                    );
 
-                setAllowStudentRegistration(
-                    restoredSettings.allowStudentRegistration ?? true
-                );
+                    await restoreDocuments(
+                        "settings",
+                        backup.database.settings
+                    );
 
-                setEnableInstructorAccounts(
-                    restoredSettings.enableInstructorAccounts ?? true
-                );
+                    await restoreInstructorData(
+                        backup.database.instructors
+                    );
 
-                showMessage("Settings restored successfully.");
-            } catch (restoreError) {
-                showError(
-                    restoreError.message || "Unable to restore the backup."
-                );
-            }
+                    const settingsSnapshot =
+                        await getDoc(
+                            doc(
+                                db,
+                                "settings",
+                                "system"
+                            )
+                        );
+
+                    if (
+                        settingsSnapshot.exists()
+                    ) {
+                        const settings =
+                            settingsSnapshot.data();
+
+                        setSystemName(
+                            settings.systemName ||
+                            "SINTAX: Secret Code"
+                        );
+
+                        setVersion(
+                            settings.version ||
+                            "Version 1.0"
+                        );
+
+                        setAllowStudentRegistration(
+                            settings.allowStudentRegistration ??
+                            true
+                        );
+
+                        setEnableInstructorAccounts(
+                            settings.enableInstructorAccounts ??
+                            true
+                        );
+                    }
+
+                    const adminSnapshot =
+                        await getDoc(
+                            doc(
+                                db,
+                                "users",
+                                currentUser.uid
+                            )
+                        );
+
+                    if (
+                        adminSnapshot.exists()
+                    ) {
+                        const adminData =
+                            adminSnapshot.data();
+
+                        setAdminFullName(
+                            adminData.fullName ||
+                            adminData.fullname ||
+                            adminData.name ||
+                            ""
+                        );
+
+                        setAdminEmail(
+                            adminData.email ||
+                            currentUser.email ||
+                            ""
+                        );
+                    }
+
+                    showMessage(
+                        "Database restored successfully."
+                    );
+                } catch (
+                    restoreError
+                ) {
+                    console.error(
+                        "Database restore error:",
+                        restoreError
+                    );
+
+                    showError(
+                        restoreError.message ||
+                        "Unable to restore the database."
+                    );
+                } finally {
+                    setRestoring(false);
+
+                    event.target.value =
+                        "";
+                }
+            };
+
+        reader.onerror = () => {
+            setRestoring(false);
+
+            showError(
+                "Unable to read the selected backup file."
+            );
 
             event.target.value = "";
         };
 
-        reader.readAsText(selectedFile);
+        reader.readAsText(
+            selectedFile
+        );
     };
 
     if (loading) {
@@ -317,7 +1028,9 @@ function Settings() {
 
             <main className="settings-content">
                 <div className="settings-header">
-                    <h1>System Settings</h1>
+                    <h1>
+                        System Settings
+                    </h1>
 
                     <p>
                         Configure the SINTAX Learning Management System.
@@ -339,9 +1052,13 @@ function Settings() {
                 <div className="settings-grid">
                     <form
                         className="settings-card"
-                        onSubmit={saveSystemSettings}
+                        onSubmit={
+                            saveSystemSettings
+                        }
                     >
-                        <h2>🖥 System Information</h2>
+                        <h2>
+                            System Information
+                        </h2>
 
                         <label htmlFor="system-name">
                             System Name
@@ -352,7 +1069,9 @@ function Settings() {
                             type="text"
                             value={systemName}
                             onChange={event =>
-                                setSystemName(event.target.value)
+                                setSystemName(
+                                    event.target.value
+                                )
                             }
                             required
                         />
@@ -371,7 +1090,9 @@ function Settings() {
                         <button
                             type="submit"
                             className="save-btn"
-                            disabled={savingSystem}
+                            disabled={
+                                savingSystem
+                            }
                         >
                             {savingSystem
                                 ? "Saving..."
@@ -381,9 +1102,32 @@ function Settings() {
 
                     <form
                         className="settings-card"
-                        onSubmit={updateAdministratorAccount}
+                        onSubmit={
+                            saveProfileInformation
+                        }
                     >
-                        <h2>👤 Administrator Account</h2>
+                        <h2>
+                            Profile Information
+                        </h2>
+
+                        <label htmlFor="admin-full-name">
+                            Full Name
+                        </label>
+
+                        <input
+                            id="admin-full-name"
+                            type="text"
+                            placeholder="Enter your full name"
+                            value={
+                                adminFullName
+                            }
+                            onChange={event =>
+                                setAdminFullName(
+                                    event.target.value
+                                )
+                            }
+                            required
+                        />
 
                         <label htmlFor="admin-email">
                             Email
@@ -393,11 +1137,31 @@ function Settings() {
                             id="admin-email"
                             type="email"
                             value={adminEmail}
-                            onChange={event =>
-                                setAdminEmail(event.target.value)
-                            }
-                            required
+                            readOnly
                         />
+
+                        <button
+                            type="submit"
+                            className="save-btn"
+                            disabled={
+                                savingProfile
+                            }
+                        >
+                            {savingProfile
+                                ? "Saving..."
+                                : "Save Profile"}
+                        </button>
+                    </form>
+
+                    <form
+                        className="settings-card"
+                        onSubmit={
+                            changeAdministratorPassword
+                        }
+                    >
+                        <h2>
+                            Change Password
+                        </h2>
 
                         <label htmlFor="current-password">
                             Current Password
@@ -406,11 +1170,16 @@ function Settings() {
                         <input
                             id="current-password"
                             type="password"
-                            placeholder="Enter current password"
-                            value={currentPassword}
-                            onChange={event =>
-                                setCurrentPassword(event.target.value)
+                            placeholder="Enter your current password"
+                            value={
+                                currentPassword
                             }
+                            onChange={event =>
+                                setCurrentPassword(
+                                    event.target.value
+                                )
+                            }
+                            autoComplete="current-password"
                             required
                         />
 
@@ -421,30 +1190,63 @@ function Settings() {
                         <input
                             id="new-password"
                             type="password"
-                            placeholder="Leave blank to keep current password"
-                            minLength="6"
-                            value={newPassword}
-                            onChange={event =>
-                                setNewPassword(event.target.value)
+                            placeholder="Enter your new password"
+                            value={
+                                newPassword
                             }
+                            onChange={event =>
+                                setNewPassword(
+                                    event.target.value
+                                )
+                            }
+                            autoComplete="new-password"
+                            minLength={6}
+                            required
+                        />
+
+                        <label htmlFor="confirm-password">
+                            Confirm New Password
+                        </label>
+
+                        <input
+                            id="confirm-password"
+                            type="password"
+                            placeholder="Confirm your new password"
+                            value={
+                                confirmPassword
+                            }
+                            onChange={event =>
+                                setConfirmPassword(
+                                    event.target.value
+                                )
+                            }
+                            autoComplete="new-password"
+                            minLength={6}
+                            required
                         />
 
                         <button
                             type="submit"
                             className="save-btn"
-                            disabled={updatingAccount}
+                            disabled={
+                                changingPassword
+                            }
                         >
-                            {updatingAccount
-                                ? "Updating..."
-                                : "Update Account"}
+                            {changingPassword
+                                ? "Changing Password..."
+                                : "Change Password"}
                         </button>
                     </form>
 
                     <form
                         className="settings-card"
-                        onSubmit={saveSecuritySettings}
+                        onSubmit={
+                            saveSecuritySettings
+                        }
                     >
-                        <h2>🔒 Security</h2>
+                        <h2>
+                            Security
+                        </h2>
 
                         <div className="setting-option">
                             <label htmlFor="student-registration">
@@ -454,7 +1256,9 @@ function Settings() {
                             <input
                                 id="student-registration"
                                 type="checkbox"
-                                checked={allowStudentRegistration}
+                                checked={
+                                    allowStudentRegistration
+                                }
                                 onChange={event =>
                                     setAllowStudentRegistration(
                                         event.target.checked
@@ -471,7 +1275,9 @@ function Settings() {
                             <input
                                 id="instructor-accounts"
                                 type="checkbox"
-                                checked={enableInstructorAccounts}
+                                checked={
+                                    enableInstructorAccounts
+                                }
                                 onChange={event =>
                                     setEnableInstructorAccounts(
                                         event.target.checked
@@ -483,7 +1289,9 @@ function Settings() {
                         <button
                             type="submit"
                             className="save-btn"
-                            disabled={savingSecurity}
+                            disabled={
+                                savingSecurity
+                            }
                         >
                             {savingSecurity
                                 ? "Saving..."
@@ -492,34 +1300,60 @@ function Settings() {
                     </form>
 
                     <div className="settings-card">
-                        <h2>💾 Backup & Restore</h2>
+                        <h2>
+                            Database Backup & Restore
+                        </h2>
 
                         <p>
-                            Download or restore the system settings.
+                            Download a backup of the SINTAX Firestore database or restore data from a previous backup.
                         </p>
 
                         <button
                             type="button"
                             className="backup-btn"
-                            onClick={backupData}
+                            onClick={
+                                backupDatabase
+                            }
+                            disabled={
+                                backingUp ||
+                                restoring
+                            }
                         >
-                            Backup Settings
+                            {backingUp
+                                ? "Backing Up Database..."
+                                : "Backup Database"}
                         </button>
 
                         <label
-                            htmlFor="restore-backup"
-                            className="restore-btn"
+                            htmlFor="restore-database"
+                            className={
+                                restoring
+                                    ? "restore-btn disabled"
+                                    : "restore-btn"
+                            }
                         >
-                            Restore Backup
+                            {restoring
+                                ? "Restoring Database..."
+                                : "Restore Database"}
                         </label>
 
                         <input
-                            id="restore-backup"
+                            id="restore-database"
                             className="restore-file-input"
                             type="file"
-                            accept="application/json"
-                            onChange={restoreBackup}
+                            accept=".json,application/json"
+                            onChange={
+                                restoreDatabase
+                            }
+                            disabled={
+                                backingUp ||
+                                restoring
+                            }
                         />
+
+                        <p className="backup-note">
+                            Backup includes users, instructors, instructor students, questionnaires, and system settings.
+                        </p>
                     </div>
                 </div>
             </main>
