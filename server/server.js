@@ -9,7 +9,8 @@ const {
 const { getAuth } = require("firebase-admin/auth");
 const {
     getFirestore,
-    FieldValue
+    FieldValue,
+    FieldPath
 } = require("firebase-admin/firestore");
 
 const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
@@ -816,28 +817,89 @@ app.get("/api/questions", verifyToken, async (req, res) => {
             });
         }
 
-        const snapshot = await db
+        const questionsReference = db
             .collection("instructors")
             .doc(instructorUID)
-            .collection("questions")
-            .get();
+            .collection("questions");
 
-        const questions = snapshot.docs
-            .map(document => ({
-                id: document.id,
-                ...document.data(),
-                hint: document.data().hint || ""
-            }))
-            .sort((first, second) =>
-                String(first.questionId || "").localeCompare(
-                    String(second.questionId || "")
-                )
-            );
+        const requestedLimit = req.query.limit;
+        const cursor = String(req.query.cursor || "").trim();
+
+        if (requestedLimit === undefined) {
+            const snapshot = await questionsReference.get();
+
+            const questions = snapshot.docs
+                .map(document => ({
+                    id: document.id,
+                    ...document.data(),
+                    hint: document.data().hint || ""
+                }))
+                .sort((first, second) =>
+                    String(first.questionId || "").localeCompare(
+                        String(second.questionId || "")
+                    )
+                );
+
+            return res.json({
+                success: true,
+                total: questions.length,
+                questions
+            });
+        }
+
+        const pageSize = Number(requestedLimit);
+
+        if (
+            !Number.isInteger(pageSize) ||
+            pageSize < 1 ||
+            pageSize > 100
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Limit must be between 1 and 100."
+            });
+        }
+
+        if (
+            cursor &&
+            !/^[A-Za-z0-9_-]+$/.test(cursor)
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid pagination cursor."
+            });
+        }
+
+        let query = questionsReference
+            .orderBy(FieldPath.documentId())
+            .limit(pageSize + 1);
+
+        if (cursor) {
+            query = query.startAfter(cursor);
+        }
+
+        const snapshot = await query.get();
+
+        const hasMore = snapshot.docs.length > pageSize;
+        const pageDocuments = snapshot.docs.slice(0, pageSize);
+
+        const questions = pageDocuments.map(document => ({
+            id: document.id,
+            ...document.data(),
+            hint: document.data().hint || ""
+        }));
+
+        const nextCursor =
+            hasMore && pageDocuments.length > 0
+                ? pageDocuments[pageDocuments.length - 1].id
+                : null;
 
         return res.json({
             success: true,
-            total: questions.length,
-            questions
+            questions,
+            pageSize,
+            hasMore,
+            nextCursor
         });
     } catch (error) {
         console.error("Get questions error:", error);
